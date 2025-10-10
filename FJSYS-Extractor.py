@@ -64,8 +64,6 @@ def parse_file(args = None):
 
         if file.filetype == "MGD":
             file = MGDFile(file)
-        else:
-            print(f"non-MDG File Detected, filename = {file.filename}")
         file.extract_content(output_path, output_source_file=args.source)
 
 if __name__ == "__main__":

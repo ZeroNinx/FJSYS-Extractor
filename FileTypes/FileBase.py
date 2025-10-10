@@ -23,11 +23,13 @@ class FileBase:
         self.basename, filetype = os.path.splitext(filename)
         self.filetype = filetype[1:]
 
-    def extract_content(self, output_path):
+    def extract_content(self, output_path, output_source_file = True):
         if not os.path.exists(output_path):
             os.makedirs(output_path)
         
         output_filename = os.path.join(output_path, self.filename)
         extract_bytes_to_file(self.source_filepath, output_filename, self.file_offset, self.file_size)
-        print(f"Source file output: {self.filename}")
+        if self.filetype == "MGD" \
+        or self.filetype == "MSD":
+            print(f"Source file output: {self.filename}")
 
