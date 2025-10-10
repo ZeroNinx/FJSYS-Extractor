@@ -69,4 +69,4 @@ def extract_bytes_to_file(input_file_path, output_file_path, start_offset, num_b
         with open(output_file_path, 'wb') as output_file:
             output_file.write(byte_data)
     
-    print(f"Extracted {num_bytes} bytes from {input_file_path} starting at offset {start_offset} and saved to {output_file_path}")
+    #print(f"Extracted {num_bytes} bytes from {input_file_path} starting at offset {start_offset} and saved to {output_file_path}")
