@@ -10,5 +10,17 @@ and More...
 
 ---
 # Usage
+```
+usage: FJSYS-Extractor.py [-h] [--source] [--debug] [-o OUTPUT] filename
 
-TODO...
+FJSYS Extractor
+
+positional arguments:
+  filename             Path to the FJSYS filename
+
+options:
+  -h, --help           show this help message and exit
+  --source             Output source file instead of decrypted file
+  --debug              With debug output
+  -o, --output OUTPUT  Output directory
+```
