@@ -9,6 +9,6 @@ Game asset extractor for ふぐり屋(fuguriya) games.
 and More...
 
 ---
-# Useage
+# Usage
 
 TODO...
