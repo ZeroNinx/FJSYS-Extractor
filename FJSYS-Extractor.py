@@ -6,8 +6,6 @@ from FileTypes.FileBase import FileBase
 from FileTypes.MGDFile import MGDFile
 
 FILELIST_OFFSET = 84
-MGD_HEADER_SIZE = 96
-MGD_TAIL_SIZE = 24
 
 file_list = [] #储存遍历出的文件信息
 
@@ -24,20 +22,17 @@ def parse_file(args = None):
     item_offset = FILELIST_OFFSET + item_index * (4*4)
     item_tail = item_offset + 3*4 #4字节一组，以0结尾 
     while read_int32(args.filename, item_tail) == 0:
+
+        # 构造文件对象
         filename_offset = read_int32(args.filename, item_offset)
         file_size = read_int32(args.filename, item_offset + 4)
         file_offset = read_int32(args.filename, item_offset + 2*4)
-
-        # print(f"Item = {item_index}")
-        # print(f"filename_offset = {filename_offset}")
-        # print(f"file_size = {file_size}")
-        # print(f"file_offset = {file_offset}")
-        # print("---")
         file_list.append(FileBase(args.filename, filename_offset, file_size, file_offset))
 
+        # 下标向后移动
         item_index = item_index + 1
         item_offset = FILELIST_OFFSET + item_index * (4*4)
-        item_tail = item_offset + 3*4 #4字节一组，以0结尾 
+        item_tail = item_offset + 3*4 
     
     print(f"Found {len(file_list)} files.")
 
@@ -59,16 +54,19 @@ def parse_file(args = None):
         if not output_path:
             exec_path = sys.path[0]
             output_path = os.path.join(exec_path, args.output)
-        if not os.path.exists(output_path):
-            os.makedirs(output_path)
 
+        # 输出文件
         if file.filetype == "MGD":
             file = MGDFile(file)
         file.extract_content(output_path, output_source_file=args.source)
 
 if __name__ == "__main__":
+
+    # 解析参数
     args = get_args()
     if args.filename is None or not os.path.isfile(args.filename):
         print("Please provide a valid FJSYS filename.")
         sys.exit(1)
+
+    # 解析文件
     parse_file(args)
