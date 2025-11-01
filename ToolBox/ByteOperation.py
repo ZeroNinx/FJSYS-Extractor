@@ -1,72 +1,87 @@
+import os
 import struct
 
-def read_byte(file_path, start_offset):
-    # 打开文件并读取指定的字节
-    with open(file_path, 'rb') as file:
-        file.seek(start_offset)
-        byte = file.read(1)
-        return byte
 
-def read_int32(file_path, offset):
-    # 打开文件并读取指定的字节
-    with open(file_path, 'rb') as file:
-        # 跳过前面54个字节
-        file.seek(offset)
-        
-        # 读取接下来的 num_ints * 4 字节（每个 int 占 4 字节）
-        byte_data = file.read(4)
-        
-        # 输出每4 字节的整数值
-        # 使用 struct 解包按小端格式（<i表示4字节的有符号int）
-        value = struct.unpack('<i', byte_data[0:4])[0]
-        return value
+def _resolve_file(file_path, file_obj):
+    # 返回可复用的文件句柄，并标记是否需要调用方关闭
+    if file_obj is not None:
+        return file_obj, False
+    return open(file_path, 'rb'), True
 
-def read_string(file_path, start_offset, length):
-    with open(file_path, 'rb') as file:
-        # 跳过前面 start_offset 个字节
-        file.seek(start_offset)
-        
-        # 读取接下来的 `length` 字节
-        byte_data = file.read(length)
-        
-        # 将字节转换为字符串
-        # 使用 latin-1 解码可以保留 0-255 原始字节到对应字符，不会丢失高位字节
-        string_data = byte_data.decode('latin-1', errors='ignore')  # 保留原始字节映射
-        
-        return string_data
 
-def read_string_until_null(file_path, start_offset):
-    with open(file_path, 'rb') as file:
-        # 跳到指定的偏移位置
-        file.seek(start_offset)
-        
-        # 读取字节直到遇到 null 字符（\0）
+def read_byte(file_path, start_offset, *, file_obj=None):
+    # 读取指定偏移处的单字节，可复用现有文件句柄
+    file_handle, should_close = _resolve_file(file_path, file_obj)
+    try:
+        file_handle.seek(start_offset)
+        data = file_handle.read(1)
+        if len(data) != 1:
+            raise ValueError(f"Failed to read 1 byte at offset {start_offset}.")
+        return data
+    finally:
+        if should_close:
+            file_handle.close()
+
+
+def read_int32(file_path, offset, *, signed=False, file_obj=None):
+    # 读取 32 位整数，默认按无符号解析以匹配归档元数据
+    file_handle, should_close = _resolve_file(file_path, file_obj)
+    try:
+        file_handle.seek(offset)
+        byte_data = file_handle.read(4)
+        if len(byte_data) != 4:
+            raise ValueError(f"Failed to read 4 bytes at offset {offset}.")
+        fmt = '<i' if signed else '<I'
+        return struct.unpack(fmt, byte_data)[0]
+    finally:
+        if should_close:
+            file_handle.close()
+
+
+def read_string(file_path, start_offset, length, *, file_obj=None):
+    # 按指定长度读取字符串，使用 latin-1 保留高位字节
+    file_handle, should_close = _resolve_file(file_path, file_obj)
+    try:
+        file_handle.seek(start_offset)
+        byte_data = file_handle.read(length)
+        if len(byte_data) != length:
+            raise ValueError(f"Failed to read {length} bytes at offset {start_offset}.")
+        return byte_data.decode('latin-1', errors='ignore')
+    finally:
+        if should_close:
+            file_handle.close()
+
+
+def read_string_until_null(file_path, start_offset, *, file_obj=None, max_length=4096):
+    # 自偏移位置读取直到遇到空字符或 EOF，为防止损坏数据设置最大长度
+    file_handle, should_close = _resolve_file(file_path, file_obj)
+    try:
+        file_handle.seek(start_offset)
         byte_data = bytearray()
-        while True:
-            byte = file.read(1)
-            if not byte:  # 文件末尾或读取失败
+        for _ in range(max_length):
+            byte = file_handle.read(1)
+            if not byte:
                 break
-            if byte == b'\0':  # 遇到 null 字符，停止读取
+            if byte == b'\0':
                 break
-            byte_data.extend(byte)  # 将字节添加到 byte_data 中
-        
-        # 将字节转换为字符串
-        # 对文件名使用 latin-1 解码以避免丢失非 ASCII 字节
-        result_string = byte_data.decode('latin-1', errors='ignore')  # 忽略无法解码的字节
-        
-        return result_string
+            byte_data.extend(byte)
+        else:
+            raise ValueError(f"String read at offset {start_offset} exceeded maximum length {max_length}.")
+        return byte_data.decode('latin-1', errors='ignore')
+    finally:
+        if should_close:
+            file_handle.close()
+
 
 def extract_bytes_to_file(input_file_path, output_file_path, start_offset, num_bytes):
-    # 打开输入文件并读取指定的字节
+    # 将指定字节区间写入新文件，确保父目录存在且读取完整
     with open(input_file_path, 'rb') as input_file:
-        # 跳过前面 start_offset 个字节
         input_file.seek(start_offset)
-        
-        # 读取接下来的 num_bytes 个字节
         byte_data = input_file.read(num_bytes)
-        
-        # 将读取的字节写入输出文件
-        with open(output_file_path, 'wb') as output_file:
-            output_file.write(byte_data)
-    
-    #print(f"Extracted {num_bytes} bytes from {input_file_path} starting at offset {start_offset} and saved to {output_file_path}")
+        if len(byte_data) != num_bytes:
+            raise ValueError(f"Failed to read {num_bytes} bytes at offset {start_offset}.")
+    parent_dir = os.path.dirname(output_file_path)
+    if parent_dir:
+        os.makedirs(parent_dir, exist_ok=True)
+    with open(output_file_path, 'wb') as output_file:
+        output_file.write(byte_data)
