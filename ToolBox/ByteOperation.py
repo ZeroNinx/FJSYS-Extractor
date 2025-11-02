@@ -23,6 +23,21 @@ def read_byte(file_path, start_offset, *, file_obj=None):
             file_handle.close()
 
 
+def read_int16(file_path, offset, *, signed=False, file_obj=None):
+    # 读取 16 位整数，默认按无符号解析以匹配头部字段
+    file_handle, should_close = _resolve_file(file_path, file_obj)
+    try:
+        file_handle.seek(offset)
+        byte_data = file_handle.read(2)
+        if len(byte_data) != 2:
+            raise ValueError(f"Failed to read 2 bytes at offset {offset}.")
+        fmt = '<h' if signed else '<H'
+        return struct.unpack(fmt, byte_data)[0]
+    finally:
+        if should_close:
+            file_handle.close()
+
+
 def read_int32(file_path, offset, *, signed=False, file_obj=None):
     # 读取 32 位整数，默认按无符号解析以匹配归档元数据
     file_handle, should_close = _resolve_file(file_path, file_obj)
