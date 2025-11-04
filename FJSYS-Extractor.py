@@ -76,7 +76,7 @@ def parse_file(args=None):
 
                 # 对 MGD 做特殊处理，其余文件保持原样抽取
                 if file.filetype.upper() == "MGD":
-                    file = MGDFile(file)
+                    file = MGDFile(file, debug_enabled=args.debug)
                 file.extract_content(output_root, output_source_file=args.source)
     except (OSError, ValueError) as exc:
         print(f"Failed to parse archive: {exc}")
